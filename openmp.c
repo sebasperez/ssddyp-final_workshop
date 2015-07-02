@@ -12,16 +12,16 @@
 
 // Main matrix size
 
-#define ROWS			100
-#define COLUMNS			100
+#define ROWS			500
+#define COLUMNS		500
 
 // Opinions representation
 
-#define NO_OPINION     -1
+#define NO_OPINION     	-1
 #define OPINION_WHITE	1
 #define OPINION_RED		2
 #define OPINION_GREEN	3
-#define OPINION_BLUE	4
+#define OPINION_BLUE		4
 
 #define OPINIONS_COUNT	4
 
