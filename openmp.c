@@ -12,8 +12,8 @@
 
 // Main matrix size
 
-#define ROWS			5000
-#define COLUMNS		5000
+#define ROWS			1000
+#define COLUMNS		1000
 
 // Opinions representation
 
@@ -28,7 +28,6 @@
 #define SHOW			0
 
 // MATRIX MANAGMENT
-
 int** create_matrix(int rows, int columns) {
 
 	int** matrix = malloc(rows * sizeof (int*));
@@ -141,18 +140,27 @@ int choose_opinion(int draw, int neighbors_count, int* neighbors_opinion) {
 	return new_opinion;
 }
 
-int ask_opinion(int rows, int columns, int** opinions, int x, int y) {
+int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd) {
 
 	// Inicialize Data Structures
 
-	int neighbors_opinion[9] = {0};
-	int opinions_count_by_type[OPINIONS_COUNT] = {0};	
-	int no_white_opinions_count = 0;
 	int neighbors_count = 0;
+	int neighbors_opinion[9] = {0};
+	
+	int no_white_opinions_count = 0;
+	int neighbors_opinion_sin_blanco[9] = {0};
+	
+	int opinions_count_by_type[OPINIONS_COUNT] = {0};	
+
+	int new_opinion;
 
 	// Proccess Matrix and fill Data Structures
 
 	int opinion;
+
+	int cant_red = 0;
+	int cant_green = 0;
+	int cant_blue = 0;
 
 	for ( int i = x - 1, ii = 0; ii < 3; i++, ii++ ) {
 
@@ -161,39 +169,65 @@ int ask_opinion(int rows, int columns, int** opinions, int x, int y) {
 			opinion = (i > -1 && j > -1 && i < rows && j < columns) ? opinions[i][j] : -1;
 
 			if (opinion > -1) {
+				// sin importar la opinion
 				neighbors_opinion[neighbors_count] = opinion;
 				neighbors_count++;
-				opinions_count_by_type[opinion]++;
+				
+				// solo los distintos de blanco
 				if (opinion != OPINION_WHITE) {
+					neighbors_opinion_sin_blanco[no_white_opinions_count] = opinion;
 					no_white_opinions_count++;
+				}
+
+				if(opinion == OPINION_RED) {
+					cant_red++;
+				}
+				if(opinion == OPINION_GREEN) {
+					cant_green++;
+				}
+				if(opinion == OPINION_BLUE) {
+					cant_blue++;
 				}
 			}
 		}
 	}
 
+	int draw = no_white_opinions_count > 1 &&
+		     ((cant_red == cant_blue == cant_green) ||
+		     (cant_red == 0 && cant_blue == cant_green)  ||
+		     (cant_green == 0 && cant_blue == cant_red)  ||
+		     (cant_blue == 0 && cant_red == cant_green) );
+
 	// Actually choose the opinion
-
-	if ( check_draw(opinions_count_by_type, no_white_opinions_count) ) {
-
-		return ((rand() % 100) <= 25) ? OPINION_WHITE : choose_opinion(1, neighbors_count, neighbors_opinion);
+	if(draw) {
+		if((rnd % 100) <= 25){
+			new_opinion =  OPINION_WHITE;
+		} else {
+			new_opinion = neighbors_opinion_sin_blanco[rnd % no_white_opinions_count];
+		}
 	}
 	else {
-		return choose_opinion(0, neighbors_count, neighbors_opinion);
+		int neighbor = rnd % neighbors_count;
+		new_opinion = neighbors_opinion[neighbor];
 	}
+
+	return new_opinion;
 }
 
 int** ask_new_opinions(int rows, int columns, int** opinions) {
 
 	int** new_opinions = create_matrix(rows, columns);
 
-	#pragma omp parallel for
+	#pragma omp parallel for shared(new_opinions)
 	for ( int i = 0; i < rows; i++ ) {
 
 		for ( int j = 0; j < columns; j++ ) {
 
-			new_opinions[i][j] = ask_opinion(rows, columns, opinions, i, j);
+			int rnd = rand();
+			new_opinions[i][j] = ask_opinion(rows, columns, opinions, i, j, rnd);
 		}
 	}
+
 	return new_opinions;
 }
 
