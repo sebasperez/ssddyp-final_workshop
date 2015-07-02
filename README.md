@@ -1,18 +1,28 @@
 Especificaciones del problema:
 
-Tamaños de las corridas: 1k, 2,5k, 5k, 10k
-cantidad de threads openmp: 2, 4, 6, 8
-MPI: 4 procesos
-10 corridas promediadas
+	Tamaños de las corridas: 1k, 2,5k, 5k, 10k
+	cantidad de threads openmp: 2, 4, 6, 8
+	MPI: 4 procesos
+	10 corridas promediadas
 
 Como Correr:
 
-seq:
-rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq
-openmp
-rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp
-mpi
-rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100
+	seq:
+		rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100
+		rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100 1
+	openmp
+		rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 1
+	mpi
+		rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100
 
+Convenciones
 
-Cada proceso de MPI debe generar su propia matriz
+	Cada proceso de MPI debe generar su propia matriz
+	Las matrices son de nxn
+	Solo medimos el trabajo que implica paralelización
+
+Dudas:
+
+	Cuál debe ser la salida del programa independientemente del análisis de rendimiento.
+	Cómo es la mejor manera de calcular el Halo de columnas
+	Reduce se banca suma de vectores?

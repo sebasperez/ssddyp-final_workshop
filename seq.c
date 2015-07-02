@@ -9,19 +9,13 @@
 
 #define MAX_ITERATIONS	4320
 
-// Main matrix size
-
-#define ROWS			100
-#define COLUMNS		100
-
 // Opinions representation
 
-#define NO_OPINION     	-1
+#define NO_OPINION		-1
 #define OPINION_WHITE	0
 #define OPINION_RED		1
 #define OPINION_GREEN	2
 #define OPINION_BLUE		3
-
 #define OPINIONS_COUNT	4
 
 // Render
@@ -29,6 +23,7 @@
 #define SHOW			0
 
 // MATRIX MANAGMENT
+
 int** create_matrix(int rows, int columns) {
 
 	int** matrix = malloc(rows * sizeof (int*));
@@ -186,6 +181,7 @@ int** ask_new_opinions(int rows, int columns, int** opinions) {
 
 	for (int i = 0; i < rows; i++ ) {
 		for ( int j = 0; j < columns; j++ ) {
+
 			new_opinions[i][j] = ask_opinion(rows, columns, opinions, i, j, rand());
 		}
 	}
@@ -229,29 +225,30 @@ long long millis() {
 
 int main(int argc, char** argv) {
 
-	// inicialize random seed
-	srand((unsigned) time(NULL));
-
-    	#if SHOW
+	#if SHOW
 		clear_output();
 	#endif
 
-	int** opinions = create_matrix(ROWS, COLUMNS);
-	initialize_matrix(ROWS, COLUMNS, opinions);
+	srand((unsigned) time(NULL));
+
+	int n = atoi(argv[1]);
+
+	int** opinions = create_matrix(n, n);
+	initialize_matrix(n, n, opinions);
 
 	long long start = millis();
 
-	for ( int t = 0; t <= MAX_ITERATIONS; ++t) {
+	for ( int t = 0; t < MAX_ITERATIONS; ++t) {
 
 		#if SHOW
 			printf("\nT%d's opinions. Left %d times.\n\n", t, MAX_ITERATIONS - t);
-			print_matrix(ROWS, COLUMNS, opinions);
+			print_matrix(n, n, opinions);
 		#endif
 
-		int** new_opinions = ask_new_opinions(ROWS, COLUMNS, opinions);
+		int** new_opinions = ask_new_opinions(n, n, opinions);
 
-		// from T to T+1
 		destroy_matrix(opinions);
+
 		opinions = new_opinions;
 
 		#if SHOW
@@ -262,11 +259,33 @@ int main(int argc, char** argv) {
 
 	long long end = millis() - start;
 
-	printf("Time: %lld\n", end);
+	int opinions_by_type[OPINIONS_COUNT] = {0};
+
+	for (int i = 0; i < n; i++ ) {
+		for ( int j = 0; j < n; j++ ) {
+
+			int opinion = opinions[i][j];
+			opinions_by_type[opinion]++;
+		}
+	}
 
 	#if SHOW
-		print_matrix(ROWS, COLUMNS, opinions);
+		print_matrix(n, n, opinions);
 	#endif
+
+	if ( (argc == 3) && (atoi(argv[2]) == 1) ) {
+
+		printf("%lld\n", end);
+	}
+	else {
+		printf("Time: %lld\n", end);
+
+		printf("White opinions: %d\n", opinions_by_type[OPINION_WHITE]);
+		printf("Red opinions: %d\n", opinions_by_type[OPINION_RED]);
+		printf("Green opinions: %d\n", opinions_by_type[OPINION_GREEN]);
+		printf("Blue opinions: %d\n", opinions_by_type[OPINION_BLUE]);		
+	}
+
 
 	return (EXIT_SUCCESS);
 }
