@@ -11,16 +11,16 @@
 
 // Main matrix size
 
-#define ROWS			500
-#define COLUMNS		500
+#define ROWS			100
+#define COLUMNS		100
 
 // Opinions representation
 
 #define NO_OPINION     	-1
-#define OPINION_WHITE	1
-#define OPINION_RED		2
-#define OPINION_GREEN	3
-#define OPINION_BLUE		4
+#define OPINION_WHITE	0
+#define OPINION_RED		1
+#define OPINION_GREEN	2
+#define OPINION_BLUE		3
 
 #define OPINIONS_COUNT	4
 
@@ -229,18 +229,17 @@ long long millis() {
 
 int main(int argc, char** argv) {
 
-	long long start = millis();
-
 	// inicialize random seed
 	srand((unsigned) time(NULL));
-    
-    
-    #if SHOW
+
+    	#if SHOW
 		clear_output();
 	#endif
 
 	int** opinions = create_matrix(ROWS, COLUMNS);
 	initialize_matrix(ROWS, COLUMNS, opinions);
+
+	long long start = millis();
 
 	for ( int t = 0; t <= MAX_ITERATIONS; ++t) {
 
@@ -261,14 +260,13 @@ int main(int argc, char** argv) {
 		#endif
 	}
 
-	#if SHOW
-		print_matrix(ROWS, COLUMNS, opinions);
-	#endif
-
-
 	long long end = millis() - start;
 
 	printf("Time: %lld\n", end);
+
+	#if SHOW
+		print_matrix(ROWS, COLUMNS, opinions);
+	#endif
 
 	return (EXIT_SUCCESS);
 }

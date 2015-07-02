@@ -6,23 +6,24 @@
 #include <sys/time.h>
 #include <omp.h>
 #include <mpi.h>
-#include <math.h>
 
 // Number of iterations (program's clock starting at T0)
 
-#define MAX_ITERATIONS	50
+#define MAX_ITERATIONS	4320
 
 // Main matrix size
 
-#define ROWS			4
-#define COLUMNS		6
+#define ROWS			10
+#define COLUMNS		10
 
 // Opinions representation
 
+#define NO_OPINION     	-1
 #define OPINION_WHITE	0
 #define OPINION_RED		1
 #define OPINION_GREEN	2
 #define OPINION_BLUE		3
+
 #define OPINIONS_COUNT	4
 
 // Render
@@ -30,7 +31,6 @@
 #define SHOW			0
 
 // MATRIX MANAGMENT
-
 int** create_matrix(int rows, int columns) {
 
 	int** matrix = malloc(rows * sizeof (int*));
@@ -104,98 +104,98 @@ void clear_output() {
 	printf("\033[2J\033[1;1H");
 }
 
-// NEW OPINIONS
-
-int check_draw(int opinions_by_type[OPINIONS_COUNT], int opinions_len) {
-
-	if (opinions_len < 2) {
-		return 0;
-	}
-
-	int cant = 0;
-
-	for ( int i = 1; i < OPINIONS_COUNT; i++ ) {
-
-		if ( opinions_by_type[i] != 0 ) {
-
-			if ( cant == 0 ) {
-				cant = opinions_by_type[i];
-			}
-
-			if ( opinions_by_type[i] != cant ) {
-				return 0;
-			}
-		}
-	}
-	return 1;
-}
-
-int choose_opinion(int draw, int neighbors_count, int* neighbors_opinion) {
-
-	int new_opinion = draw ? OPINION_WHITE : -1;
-	
-	while((draw && new_opinion == OPINION_WHITE) || (!draw && new_opinion == -1)) {
-		// ask randomly a neighbor for a opinion
-		int neighbor = rand() % neighbors_count;
-		new_opinion = neighbors_opinion[neighbor];
-	}
-
-	return new_opinion;
-}
-
-int ask_opinion(int rows, int columns, int** opinions, int x, int y) {
+int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd) {
 
 	// Inicialize Data Structures
 
-	int neighbors_opinion[9] = {0};
-	int opinions_count_by_type[OPINIONS_COUNT] = {0};	
-	int no_white_opinions_count = 0;
 	int neighbors_count = 0;
+	int neighbors_opinion[9] = {0};
+	
+	int no_white_opinions_count = 0;
+	int neighbors_opinion_sin_blanco[9] = {0};
+	
+	int opinions_count_by_type[OPINIONS_COUNT] = {0};	
+
+	int new_opinion;
 
 	// Proccess Matrix and fill Data Structures
 
 	int opinion;
 
+	int cant_red = 0;
+	int cant_green = 0;
+	int cant_blue = 0;
+
 	for ( int i = x - 1, ii = 0; ii < 3; i++, ii++ ) {
 
 		for ( int j = y - 1, jj = 0; jj < 3; j++, jj++ ) {
 
-			opinion = (i > -1 && j > -1 && i < rows && j < columns) ? opinions[i][j] : -1;
+			opinion = (i > -1 && j > -1 && i < rows && j < columns) ? opinions[i][j] : NO_OPINION;
 
-			if (opinion > -1) {
+			if (opinion != -1) {
+				// sin importar la opinion
 				neighbors_opinion[neighbors_count] = opinion;
 				neighbors_count++;
-				opinions_count_by_type[opinion]++;
-				if (opinion != OPINION_WHITE) {
-					no_white_opinions_count++;
-				}
 			}
+
+			switch(opinion) {
+				case OPINION_RED:
+					cant_red++;
+					neighbors_opinion_sin_blanco[no_white_opinions_count] = opinion;
+					no_white_opinions_count++;
+					break;
+
+				case OPINION_GREEN:
+					cant_green++;
+					neighbors_opinion_sin_blanco[no_white_opinions_count] = opinion;
+					no_white_opinions_count++;
+					break;
+
+				case OPINION_BLUE:
+					cant_blue++;
+					neighbors_opinion_sin_blanco[no_white_opinions_count] = opinion;
+					no_white_opinions_count++;
+					break;
+			}
+
 		}
 	}
 
+	int draw = no_white_opinions_count > 1 &&
+		     ((cant_red == cant_blue == cant_green) ||
+		     (cant_red == 0 && cant_blue == cant_green)  ||
+		     (cant_green == 0 && cant_blue == cant_red)  ||
+		     (cant_blue == 0 && cant_red == cant_green));
+
 	// Actually choose the opinion
-
-	if ( check_draw(opinions_count_by_type, no_white_opinions_count) ) {
-
-		return ((rand() % 100) <= 25) ? OPINION_WHITE : choose_opinion(1, neighbors_count, neighbors_opinion);
+	if(draw) {
+		if((rnd % 100) <= 25){
+			new_opinion =  OPINION_WHITE;
+		} else {
+			new_opinion = neighbors_opinion_sin_blanco[rnd % no_white_opinions_count];
+		}
 	}
 	else {
-		return choose_opinion(0, neighbors_count, neighbors_opinion);
+		new_opinion = neighbors_opinion[rnd % neighbors_count];
 	}
+
+	return new_opinion;
 }
 
 int** ask_new_opinions(int rows, int columns, int** opinions) {
 
 	int** new_opinions = create_matrix(rows, columns);
+	int new_opinion;
 
-	#pragma omp parallel for
-	for ( int i = 0; i < rows; i++ ) {
-
+	#pragma omp parallel for shared(new_opinions)
+	for (int i = 0; i < rows; i++ ) {
 		for ( int j = 0; j < columns; j++ ) {
 
-			new_opinions[i][j] = ask_opinion(rows, columns, opinions, i, j);
+			new_opinion = ask_opinion(rows, columns, opinions, i, j, rand());
+			new_opinions[i][j] = new_opinion;
 		}
 	}
+
 	return new_opinions;
 }
 
@@ -235,98 +235,66 @@ long long millis() {
 
 int main(int argc, char** argv) {
 
-	long long start;
+	int rank, size;
+	int root_id = 0;
+	long long start, end;
 
-	// MPI
-	int rank, size, root_id = 0;
 	MPI_Init(&argc, &argv);
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+	omp_set_num_threads(4);
+
 	// inicialize random seed
 	srand((unsigned) time(NULL));
 
-	if (root_id == rank) {
+	int n = atoi(argv[1])/2; // TODO: llevar el n a seq y a openmp
 
-		start = millis();
+	int** opinions = create_matrix(n, n);
+	initialize_matrix(n, n, opinions);
 
-		double lado = floor(sqrt((ROWS*COLUMNS)/size));
+	if ( rank == root_id ) {
 
-		int sub_rows = (int) lado;
-		int sub_columns = (int) lado;
-
-		int acumulado_x = 0;
-		int acumulado_y = 0;
-
-		// for ( int i = 0; i < ROWS ; i+sub_rows ) {
-
-		// 	for ( int j = 0; j < COLUMNS ; j+sub_columns ) {
-
-			for ( int j = 0; j < size ; j++ ) {
-			// if ( i == size-1 ) {
-			// 	sub_rows += ROWS % size;
-			// 	sub_columns += COLUMNS % size;
-			// }
-				if(acumulado_x < COLUMNS){
-					acumulado_x += lado;
-				}
-
-				if(acumulado_x + lado > COLUMNS){
-					sub_columns += COLUMNS % size;
-					acumulado_x = 0; // reset x
-					acumulado_y += lado; // proximo proc baja de lina
-				}
-
-				if(acumulado_y < ROWS){
-					acumulado_y += lado;
-				}
-
-				if(acumulado_y + lado > ROWS){
-					sub_rows += ROWS % size;
-					// no hago mas nada xq deberiamos estar en la esquina inferior derecha (la ultima matriz)
-				}
-
-				int** sub_opinions = create_matrix(sub_rows, sub_columns);
-				initialize_matrix(sub_rows, sub_columns, sub_opinions);
-
-				print_matrix(sub_rows, sub_columns, sub_opinions);
-
-				sub_columns = lado;
-				sub_rows = lado;
-			}
-		// }
+		start = millis();	
 	}
 
-	// if (SHOW) { clear_output(); }
-	// int** opinions = create_matrix(ROWS, COLUMNS);
-	// initialize_matrix(ROWS, COLUMNS, opinions);
+	for ( int t = 0; t < MAX_ITERATIONS; ++t) {
 
-	// for ( int t = 0; t <= MAX_ITERATIONS; ++t) {
+		int** new_opinions = ask_new_opinions(n, n, opinions);
 
-	// 	if (SHOW) {
-	// 		printf("\nT%d's opinions. Left %d times.\n\n", t, MAX_ITERATIONS - t);
-	// 		print_matrix(ROWS, COLUMNS, opinions);
-	// 	}
+		// from T to T+1
+		destroy_matrix(opinions);
+		opinions = new_opinions;
+	}
 
-	// 	int** new_opinions = ask_new_opinions(ROWS, COLUMNS, opinions);
+	int opinions_by_type[OPINIONS_COUNT] = {0};
 
-	// 	// from T to T+1
-	// 	destroy_matrix(opinions);
-	// 	opinions = new_opinions;
+	for (int i = 0; i < n; i++ ) {
+		for ( int j = 0; j < n; j++ ) {
 
-	// 	if (SHOW) {
-	// 		wait_keypress();
-	// 		clear_output();
-	// 	}
-	// }
+			int opinion = opinions[i][j];
+			opinions_by_type[opinion]++;
+		}
+	}
 
-	// if (!SHOW) { print_matrix(ROWS, COLUMNS, opinions); }
+	printf("vectores0: %d -  %d\n", opinions_by_type[0], rank);
+	printf("vectores1: %d -  %d\n", opinions_by_type[1], rank);
+	printf("vectores2: %d -  %d\n", opinions_by_type[2], rank);
+	printf("vectores3: %d -  %d\n", opinions_by_type[3], rank);
+
+// MPI_Reduce(&local_sum, &global_sum, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+	if ( rank == root_id ) {
+
+		end = millis() - start;
+		printf("Time: %lld  -  %d\n", end, rank);
+	}
 
 	MPI_Finalize();
 
-	long long end = millis() - start;
-
-	printf("Time: %lld\n", end);
-
 	return (EXIT_SUCCESS);
 }
+
+
+// MPI_Send(&matrix[i], columns, MPI_INT, (i % size), 0, MPI_COMM_WORLD);
+// MPI_Recv(&current_row, columns, MPI_INT, root_id, 0, MPI_COMM_WORLD, &status);
