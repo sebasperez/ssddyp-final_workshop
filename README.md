@@ -11,9 +11,11 @@ Como Correr:
 		rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100
 		rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100 1
 	openmp
-		rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 1
+		rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 4
+		rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 4 1
 	mpi
-		rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100
+		rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100 4
+		rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100 4 1
 
 Convenciones
 

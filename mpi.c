@@ -243,12 +243,11 @@ int main(int argc, char** argv) {
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 	MPI_Comm_size(MPI_COMM_WORLD, &size);
 
-	omp_set_num_threads(4);
-
-	// inicialize random seed
 	srand((unsigned) time(NULL));
 
-	int n = atoi(argv[1])/2; // TODO: llevar el n a seq y a openmp
+	int n = atoi(argv[1]) / 2;
+
+	omp_set_num_threads(atoi(argv[2]));
 
 	int** opinions = create_matrix(n, n);
 	initialize_matrix(n, n, opinions);
@@ -262,9 +261,16 @@ int main(int argc, char** argv) {
 
 		int** new_opinions = ask_new_opinions(n, n, opinions);
 
-		// from T to T+1
 		destroy_matrix(opinions);
+
 		opinions = new_opinions;
+	}
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+	if ( rank == root_id ) {
+
+		end = millis() - start;
 	}
 
 	int opinions_by_type[OPINIONS_COUNT] = {0};
@@ -282,12 +288,22 @@ int main(int argc, char** argv) {
 	printf("vectores2: %d -  %d\n", opinions_by_type[2], rank);
 	printf("vectores3: %d -  %d\n", opinions_by_type[3], rank);
 
-// MPI_Reduce(&local_sum, &global_sum, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	// MPI_Reduce(&local_sum, &global_sum, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 	if ( rank == root_id ) {
 
-		end = millis() - start;
-		printf("Time: %lld  -  %d\n", end, rank);
+		if ( (argc == 4) && (atoi(argv[3]) == 1) ) {
+
+			printf("%lld\n", end);
+		}
+		else {
+			printf("Time: %lld\n", end);
+
+			printf("White opinions: %d\n", opinions_by_type[OPINION_WHITE]);
+			printf("Red opinions: %d\n", opinions_by_type[OPINION_RED]);
+			printf("Green opinions: %d\n", opinions_by_type[OPINION_GREEN]);
+			printf("Blue opinions: %d\n", opinions_by_type[OPINION_BLUE]);		
+		}
 	}
 
 	MPI_Finalize();
