@@ -8,14 +8,14 @@ Especificaciones del problema:
 Como Correr:
 
 	seq:
-		rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100
-		rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100 1
+		rm seq; gcc-4.9 -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100
+		rm seq; gcc-4.9 -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100 1
 	openmp
-		rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 4
-		rm openmp; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 4 1
+		rm openmp; gcc-4.9 -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 100 4
+		rm openmp; gcc-4.9 -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c; ./openmp 1000 4 1
 	mpi
-		rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100 4
-		rm mpi; mpicc -fopenmp -std=c99 -o mpi mpi.c; mpiexec -np 4 ./mpi 100 4 1
+		rm mpi; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o mpi mpi.c; mpiexec -np 4 ./mpi 100 4
+		rm mpi; mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o mpi mpi.c; mpiexec -np 4 ./mpi 100 4 1
 
 Convenciones
 
@@ -23,8 +23,13 @@ Convenciones
 	Las matrices son de nxn
 	Solo medimos el trabajo que implica paralelización
 
-Dudas:
 
-	Cuál debe ser la salida del programa independientemente del análisis de rendimiento.
-	Cómo es la mejor manera de calcular el Halo de columnas
-	Reduce se banca suma de vectores?
+
+
+Secuencial
+
+echo "10 ejecuciones del código secuencial. n=100"
+for i in {1..10};do rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 100 1; done;
+
+echo "10 ejecuciones del código secuencial. n=1000"
+for i in {1..10};do rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 1000 1; done;
