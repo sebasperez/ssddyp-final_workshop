@@ -11,18 +11,13 @@
 
 #define MAX_ITERATIONS	4320
 
-// Main matrix size
-
-#define ROWS			10
-#define COLUMNS		10
-
 // Opinions representation
 
 #define NO_OPINION     	-1
 #define OPINION_WHITE	0
 #define OPINION_RED		1
 #define OPINION_GREEN	2
-#define OPINION_BLUE		3
+#define OPINION_BLUE	3
 
 #define OPINIONS_COUNT	4
 
@@ -51,13 +46,59 @@ void destroy_matrix(int** matrix) {
 	free(matrix);
 }
 
-void initialize_matrix(int rows, int columns, int** matrix) {
+void initialize_matrix(int rows, int columns, int** matrix, int rank, int* halo1, int* halo2) {
+
+	int opinion;
 
 	for ( int i = 0; i < rows; i++ ) {
 
 		for ( int j = 0; j < columns; j++ ) {
 
-			matrix[i][j] = (rand() % OPINIONS_COUNT);
+			opinion = (rand() % OPINIONS_COUNT);
+			matrix[i][j] = opinion;
+
+			switch(rank){
+				
+				case 0:
+
+					if(j == columns - 1){
+						halo1[i] = opinion;
+					}
+					if(i == rows - 1){
+						halo2[j] = opinion;
+					}
+					break;
+				
+				case 1:
+
+					if(i == rows - 1){
+						halo1[j] = opinion;
+					}
+					if(j == 0){
+						halo2[i] = opinion;
+					}
+					break;
+				
+				case 2:
+
+					if(i == 0){
+						halo1[j] = opinion;
+					}
+					if(j == columns){
+						halo2[i] = opinion;
+					}
+					break;
+
+				case 3:
+
+					if(i == 0){
+						halo1[j] = opinion;
+					}
+					if(j == 0){
+						halo2[i] = opinion;
+					}
+					break;
+			}
 		}
 	}
 }
@@ -104,7 +145,7 @@ void clear_output() {
 	printf("\033[2J\033[1;1H");
 }
 
-int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd) {
+int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd, int rank, int* halo1, int* halo2) {
 
 	// Inicialize Data Structures
 
@@ -132,7 +173,52 @@ int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd) {
 
 			opinion = (i > -1 && j > -1 && i < rows && j < columns) ? opinions[i][j] : NO_OPINION;
 
-			if (opinion != -1) {
+			if(opinion == NO_OPINION){
+				switch(rank){
+					
+					case 0:
+
+						if(j == columns - 1){
+							opinion = halo1[i];
+						}
+						if(i == rows - 1){
+							opinion = halo2[j];
+						}
+						break;
+					
+					case 1:
+
+						if(i == rows - 1){
+							opinion = halo1[j];
+						}
+						if(j == 0){
+							opinion = halo2[i];
+						}
+						break;
+					
+					case 2:
+
+						if(i == 0){
+							opinion = halo1[j];
+						}
+						if(j == columns){
+							opinion = halo2[i];
+						}
+						break;
+
+					case 3:
+
+						if(i == 0){
+							opinion = halo1[j];
+						}
+						if(j == 0){
+							opinion = halo2[i];
+						}
+						break;
+				}
+			}
+
+			if (opinion != NO_OPINION) {
 				// sin importar la opinion
 				neighbors_opinion[neighbors_count] = opinion;
 				neighbors_count++;
@@ -182,7 +268,7 @@ int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd) {
 	return new_opinion;
 }
 
-int** ask_new_opinions(int rows, int columns, int** opinions) {
+int** ask_new_opinions(int rows, int columns, int** opinions, int rank, int* halo1, int* halo2) {
 
 	int** new_opinions = create_matrix(rows, columns);
 	int new_opinion;
@@ -191,7 +277,7 @@ int** ask_new_opinions(int rows, int columns, int** opinions) {
 	for (int i = 0; i < rows; i++ ) {
 		for ( int j = 0; j < columns; j++ ) {
 
-			new_opinion = ask_opinion(rows, columns, opinions, i, j, rand());
+			new_opinion = ask_opinion(rows, columns, opinions, i, j, rand(), rank, halo1, halo2);
 			new_opinions[i][j] = new_opinion;
 		}
 	}
@@ -250,16 +336,51 @@ int main(int argc, char** argv) {
 	omp_set_num_threads(atoi(argv[2]));
 
 	int** opinions = create_matrix(n, n);
-	initialize_matrix(n, n, opinions);
+
+	// cada matriz tiene siempre 2 halos para compartir con el resto de los procesos
+	int* my_halo1 = calloc(n, sizeof (int));
+	int* my_halo2 = calloc(n, sizeof (int));
+	
+	initialize_matrix(n, n, opinions, rank, my_halo1, my_halo2);
 
 	if ( rank == root_id ) {
 
 		start = millis();	
 	}
 
+	// send to & recv from
+	int send_receive[2];
+
+	switch(rank){
+		
+		case 0:
+		case 3:
+			send_receive[0] = 1;
+			send_receive[1] = 2;
+		break;
+
+		case 1:
+			send_receive[0] = 3;
+			send_receive[1] = 0;
+		break;
+
+		case 2:
+			send_receive[0] = 0;
+			send_receive[1] = 3;
+		break;
+	}
+
+	int* halo1, halo2;
+
 	for ( int t = 0; t < MAX_ITERATIONS; ++t) {
 
-		int** new_opinions = ask_new_opinions(n, n, opinions);
+		MPI_Send(my_halo1, n, MPI_INT, send_receive[0], 0, MPI_COMM_WORLD);
+		MPI_Send(my_halo2, n, MPI_INT, send_receive[1], 0, MPI_COMM_WORLD);
+
+		MPI_Recv(halo1, n, MPI_INT, send_receive[0], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		MPI_Recv(halo2, n, MPI_INT, send_receive[1], 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+		int** new_opinions = ask_new_opinions(n, n, opinions, rank, halo1, halo2);
 
 		destroy_matrix(opinions);
 
@@ -283,12 +404,9 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	printf("vectores0: %d -  %d\n", opinions_by_type[0], rank);
-	printf("vectores1: %d -  %d\n", opinions_by_type[1], rank);
-	printf("vectores2: %d -  %d\n", opinions_by_type[2], rank);
-	printf("vectores3: %d -  %d\n", opinions_by_type[3], rank);
+	int opinions_results[OPINIONS_COUNT] = {0};
 
-	// MPI_Reduce(&local_sum, &global_sum, 1, MPI_FLOAT, MPI_SUM, 0, MPI_COMM_WORLD);
+	MPI_Reduce(opinions_by_type, opinions_results, OPINIONS_COUNT, MPI_INT, MPI_SUM, root_id, MPI_COMM_WORLD);
 
 	if ( rank == root_id ) {
 
@@ -299,10 +417,10 @@ int main(int argc, char** argv) {
 		else {
 			printf("Time: %lld\n", end);
 
-			printf("White opinions: %d\n", opinions_by_type[OPINION_WHITE]);
-			printf("Red opinions: %d\n", opinions_by_type[OPINION_RED]);
-			printf("Green opinions: %d\n", opinions_by_type[OPINION_GREEN]);
-			printf("Blue opinions: %d\n", opinions_by_type[OPINION_BLUE]);		
+			printf("White opinions: %d\n", opinions_results[OPINION_WHITE]);
+			printf("Red opinions: %d\n", opinions_results[OPINION_RED]);
+			printf("Green opinions: %d\n", opinions_results[OPINION_GREEN]);
+			printf("Blue opinions: %d\n", opinions_results[OPINION_BLUE]);		
 		}
 	}
 

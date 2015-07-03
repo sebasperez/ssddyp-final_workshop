@@ -125,7 +125,7 @@ int ask_opinion(int rows, int columns, int** opinions, int x, int y, int rnd) {
 
 			opinion = (i > -1 && j > -1 && i < rows && j < columns) ? opinions[i][j] : NO_OPINION;
 
-			if (opinion != -1) {
+			if (opinion != NO_OPINION) {
 				// sin importar la opinion
 				neighbors_opinion[neighbors_count] = opinion;
 				neighbors_count++;
