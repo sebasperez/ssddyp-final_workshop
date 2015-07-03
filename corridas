@@ -1,0 +1,15 @@
+/openmp 10000 4
+	Time: 19511963
+	White opinions: 17880763
+	Red opinions: 21797045
+	Green opinions: 38795454
+	Blue opinions: 21526738
+	5,419
+
+./openmp 10000 8
+	Time: 19547736
+	White opinions: 17884841
+	Red opinions: 21953235
+	Green opinions: 38733218
+	Blue opinions: 21428706
+	5,429
