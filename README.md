@@ -33,3 +33,12 @@ for i in {1..10};do rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq s
 
 echo "10 ejecuciones del código secuencial. n=1000"
 for i in {1..10};do rm seq; gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c; ./seq 1000 1; done;
+
+
+
+
+run gcc -std=c99 -O3 -funroll-loops -ffast-math -o seq seq.c
+
+run gcc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o openmp openmp.c
+
+run mpicc -fopenmp -std=c99 -O4 -funroll-loops -ffast-math -o mpi mpi.c
